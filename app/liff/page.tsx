@@ -1,0 +1,273 @@
+"use client";
+
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+type VerifyResponse = {
+  success: boolean;
+  verified?: boolean;
+  student_id?: string;
+  error?: string;
+};
+
+type ApiResponse = {
+  success: boolean;
+  error?: string;
+};
+
+declare global {
+  interface Window {
+    liff?: {
+      init: (config: { liffId: string }) => Promise<void>;
+      isLoggedIn: () => boolean;
+      login: () => void;
+      getProfile: () => Promise<{ userId: string }>;
+    };
+  }
+}
+
+const LIFF_SCRIPT_SRC = "https://static.line-scdn.net/liff/edge/2/sdk.js";
+
+function loadLiffScript(): Promise<void> {
+  if (window.liff) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src=\"${LIFF_SCRIPT_SRC}\"]`) as
+      | HTMLScriptElement
+      | null;
+
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Failed to load LIFF SDK")), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = LIFF_SCRIPT_SRC;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load LIFF SDK"));
+    document.body.appendChild(script);
+  });
+}
+
+export default function LiffPage() {
+  const searchParams = useSearchParams();
+  const activity = useMemo(() => searchParams.get("activity") ?? "", [searchParams]);
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [userId, setUserId] = useState("");
+  const [isVerified, setIsVerified] = useState(false);
+
+  const [studentId, setStudentId] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+
+  const enterActivity = async (lineUserId: string) => {
+    const response = await fetch("/api/enter-activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        line_user_id: lineUserId,
+        activity_key: activity,
+      }),
+    });
+
+    const data = (await response.json()) as ApiResponse;
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to enter activity");
+    }
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setErrorMessage("");
+      setStatusMessage("");
+
+      try {
+        if (!activity) {
+          throw new Error("Missing activity key");
+        }
+
+        if (!liffId) {
+          throw new Error("Missing NEXT_PUBLIC_LIFF_ID");
+        }
+
+        await loadLiffScript();
+
+        if (!window.liff) {
+          throw new Error("LIFF SDK unavailable");
+        }
+
+        await window.liff.init({ liffId });
+
+        if (!window.liff.isLoggedIn()) {
+          window.liff.login();
+          return;
+        }
+
+        const profile = await window.liff.getProfile();
+        const lineUserId = profile.userId;
+
+        setUserId(lineUserId);
+
+        const verificationRes = await fetch(
+          `/api/check-verification?line_user_id=${encodeURIComponent(lineUserId)}`
+        );
+        const verificationData = (await verificationRes.json()) as VerifyResponse;
+
+        if (!verificationRes.ok || !verificationData.success) {
+          throw new Error(verificationData.error || "Failed to check verification");
+        }
+
+        if (verificationData.verified) {
+          setIsVerified(true);
+          await enterActivity(lineUserId);
+          setStatusMessage("Entered activity successfully.");
+          return;
+        }
+
+        setIsVerified(false);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void run();
+  }, [activity, liffId]);
+
+  const onVerifySubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setErrorMessage("");
+    setStatusMessage("");
+
+    try {
+      if (!userId) {
+        throw new Error("Missing LINE user profile");
+      }
+
+      const verifyRes = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          line_user_id: userId,
+          student_id: studentId,
+          date_of_birth: dateOfBirth,
+          id_number: idNumber,
+        }),
+      });
+
+      const verifyData = (await verifyRes.json()) as VerifyResponse;
+
+      if (!verifyRes.ok || !verifyData.success) {
+        throw new Error(verifyData.error || "Verification failed");
+      }
+
+      if (!verifyData.verified) {
+        setIsVerified(false);
+        setStatusMessage("Verification failed. Please check your information.");
+        return;
+      }
+
+      setIsVerified(true);
+      await enterActivity(userId);
+      setStatusMessage("Verified and entered activity successfully.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-md px-4 py-10">
+        <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h1 className="text-xl font-semibold">Activity Check-in</h1>
+          <p className="mt-1 text-sm text-slate-600">Activity: {activity || "-"}</p>
+
+          {loading ? <p className="mt-4 text-sm">Loading...</p> : null}
+
+          {errorMessage ? (
+            <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</p>
+          ) : null}
+
+          {statusMessage ? (
+            <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              {statusMessage}
+            </p>
+          ) : null}
+
+          {!loading && !isVerified ? (
+            <form className="mt-6 space-y-4" onSubmit={onVerifySubmit}>
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="student_id">
+                  Student ID
+                </label>
+                <input
+                  id="student_id"
+                  type="text"
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="date_of_birth">
+                  Date of Birth (DD-MM-YYYY)
+                </label>
+                <input
+                  id="date_of_birth"
+                  type="text"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium" htmlFor="id_number">
+                  ID Number
+                </label>
+                <input
+                  id="id_number"
+                  type="text"
+                  value={idNumber}
+                  onChange={(e) => setIdNumber(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {submitting ? "Submitting..." : "Verify and Enter"}
+              </button>
+            </form>
+          ) : null}
+        </div>
+      </div>
+    </main>
+  );
+}

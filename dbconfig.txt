@@ -1,0 +1,5 @@
+dbname nbu-actmenu
+host localhost (147.50.10.29)
+user postgres
+password Tct85329$
+port 5432
