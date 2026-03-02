@@ -85,13 +85,10 @@ function LiffPageContent() {
 
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
 
-  const openLineOaChat = () => {
-    if (window.liff?.isInClient()) {
-      window.liff.openWindow({ url: LINE_OA_URL, external: false });
-      return;
-    }
+  const isLineAppBrowser = () => /Line\//i.test(window.navigator.userAgent);
 
-    window.location.href = LINE_OA_URL;
+  const openLineOaChat = () => {
+    window.location.replace(LINE_OA_URL);
   };
 
   const enterActivity = async (lineUserId: string) => {
@@ -165,7 +162,8 @@ function LiffPageContent() {
         }
 
         await window.liff.init({ liffId });
-        setInLineClient(window.liff.isInClient());
+        const inClient = window.liff.isInClient() || isLineAppBrowser();
+        setInLineClient(inClient);
 
         if (!window.liff.isLoggedIn()) {
           const redirectUri = new URL(window.location.href);
@@ -197,7 +195,7 @@ function LiffPageContent() {
           setActivityName(enterResult.activity_name ?? activity);
           setStatusMessage("Entered activity successfully.");
 
-          if (window.liff.isInClient()) {
+          if (inClient) {
             openLineOaChat();
           } else {
             setCompleted(true);
@@ -256,7 +254,7 @@ function LiffPageContent() {
       setActivityName(enterResult.activity_name ?? activity);
       setStatusMessage("Verified and entered activity successfully.");
 
-      if (window.liff?.isInClient()) {
+      if (inLineClient || isLineAppBrowser()) {
         openLineOaChat();
       } else {
         setCompleted(true);
