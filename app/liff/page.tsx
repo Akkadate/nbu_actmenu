@@ -20,7 +20,7 @@ declare global {
     liff?: {
       init: (config: { liffId: string }) => Promise<void>;
       isLoggedIn: () => boolean;
-      login: () => void;
+      login: (options?: { redirectUri?: string }) => void;
       getProfile: () => Promise<{ userId: string }>;
     };
   }
@@ -57,7 +57,8 @@ function loadLiffScript(): Promise<void> {
 
 export default function LiffPage() {
   const searchParams = useSearchParams();
-  const activity = useMemo(() => searchParams.get("activity") ?? "", [searchParams]);
+  const activityParam = useMemo(() => searchParams.get("activity") ?? "", [searchParams]);
+  const [activity, setActivity] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +91,17 @@ export default function LiffPage() {
   };
 
   useEffect(() => {
+    if (activityParam) {
+      setActivity(activityParam);
+      sessionStorage.setItem("activity_key", activityParam);
+      return;
+    }
+
+    const savedActivity = sessionStorage.getItem("activity_key") ?? "";
+    setActivity(savedActivity);
+  }, [activityParam]);
+
+  useEffect(() => {
     const run = async () => {
       setLoading(true);
       setErrorMessage("");
@@ -113,7 +125,11 @@ export default function LiffPage() {
         await window.liff.init({ liffId });
 
         if (!window.liff.isLoggedIn()) {
-          window.liff.login();
+          const redirectUri = new URL(window.location.href);
+          if (!redirectUri.searchParams.get("activity") && activity) {
+            redirectUri.searchParams.set("activity", activity);
+          }
+          window.liff.login({ redirectUri: redirectUri.toString() });
           return;
         }
 
