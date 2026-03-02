@@ -17,6 +17,15 @@ type EnterActivityResponse = {
   activity_name?: string;
 };
 
+type ActivitiesResponse = {
+  success: boolean;
+  items?: Array<{
+    activity_key: string;
+    activity_name: string;
+  }>;
+  error?: string;
+};
+
 declare global {
   interface Window {
     liff?: {
@@ -140,6 +149,27 @@ function LiffPageContent() {
     const savedActivity = sessionStorage.getItem("activity_key") ?? "";
     setActivity(savedActivity);
   }, [activityParam, liffStateParam]);
+
+  useEffect(() => {
+    const loadActivityName = async () => {
+      if (!activity) return;
+
+      try {
+        const res = await fetch("/api/admin/activities", { cache: "no-store" });
+        const data = (await res.json()) as ActivitiesResponse;
+        if (!res.ok || !data.success) return;
+
+        const found = (data.items ?? []).find((item) => item.activity_key === activity);
+        if (found?.activity_name) {
+          setActivityName(found.activity_name);
+        }
+      } catch {
+        // keep fallback to activity key
+      }
+    };
+
+    void loadActivityName();
+  }, [activity]);
 
   useEffect(() => {
     const run = async () => {
@@ -284,7 +314,8 @@ function LiffPageContent() {
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight">Activity Check-in</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Activity Key: <span className="font-medium text-slate-800">{activity || "-"}</span>
+              Activity:{" "}
+              <span className="font-medium text-slate-800">{activityName || activity || "-"}</span>
             </p>
           </div>
 
@@ -344,14 +375,13 @@ function LiffPageContent() {
 
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium" htmlFor="date_of_birth">
-                  Date of Birth (DD-MM-YYYY)
+                  Date of Birth
                 </label>
                 <input
                   id="date_of_birth"
-                  type="text"
+                  type="date"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  placeholder="DD-MM-YYYY"
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none ring-sky-200 transition focus:border-sky-400 focus:ring-4"
                   required
                 />

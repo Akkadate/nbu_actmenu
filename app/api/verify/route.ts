@@ -3,10 +3,15 @@ import { query } from "@/lib/db";
 import { verifySchema } from "@/lib/validation";
 
 function toIsoDate(value: string): string | null {
-  const match = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (!match) return null;
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return value;
+  }
 
-  const [, dd, mm, yyyy] = match;
+  const dmyMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!dmyMatch) return null;
+
+  const [, dd, mm, yyyy] = dmyMatch;
   return `${yyyy}-${mm}-${dd}`;
 }
 
