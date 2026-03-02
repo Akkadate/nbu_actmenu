@@ -21,6 +21,8 @@ declare global {
       init: (config: { liffId: string }) => Promise<void>;
       isLoggedIn: () => boolean;
       login: (options?: { redirectUri?: string }) => void;
+      isInClient: () => boolean;
+      closeWindow: () => void;
       getProfile: () => Promise<{ userId: string }>;
     };
   }
@@ -171,6 +173,11 @@ function LiffPageContent() {
           setIsVerified(true);
           await enterActivity(lineUserId);
           setStatusMessage("Entered activity successfully.");
+          if (window.liff.isInClient()) {
+            setTimeout(() => {
+              window.liff?.closeWindow();
+            }, 800);
+          }
           return;
         }
 
@@ -222,6 +229,11 @@ function LiffPageContent() {
       setIsVerified(true);
       await enterActivity(userId);
       setStatusMessage("Verified and entered activity successfully.");
+      if (window.liff?.isInClient()) {
+        setTimeout(() => {
+          window.liff?.closeWindow();
+        }, 800);
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
     } finally {
