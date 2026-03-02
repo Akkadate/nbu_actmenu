@@ -31,9 +31,6 @@ declare global {
 }
 
 const LIFF_SCRIPT_SRC = "https://static.line-scdn.net/liff/edge/2/sdk.js";
-const LINE_OA_ID = "@896pwveo";
-const LINE_OA_URL = "https://lin.ee/zg6bkMq";
-
 function loadLiffScript(): Promise<void> {
   if (window.liff) {
     return Promise.resolve();
@@ -84,11 +81,17 @@ function LiffPageContent() {
   const [idNumber, setIdNumber] = useState("");
 
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID ?? "";
+  const lineOaUrl = process.env.NEXT_PUBLIC_LINE_OA_URL ?? "";
 
   const isLineAppBrowser = () => /Line\//i.test(window.navigator.userAgent);
 
   const openLineOaChat = () => {
-    window.location.replace(LINE_OA_URL);
+    if (!lineOaUrl) {
+      setErrorMessage("Missing NEXT_PUBLIC_LINE_OA_URL");
+      return;
+    }
+    window.location.replace(lineOaUrl);
   };
 
   const enterActivity = async (lineUserId: string) => {
@@ -294,10 +297,10 @@ function LiffPageContent() {
                 <span className="font-medium">Student:</span> {studentName || "-"}
               </p>
               <a
-                href={LINE_OA_URL}
+                href={lineOaUrl || "#"}
                 className="inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
               >
-                Go to LINE OA Chat ({LINE_OA_ID})
+                Go to LINE OA Chat ({lineOaId || "OA"})
               </a>
             </div>
           ) : null}
