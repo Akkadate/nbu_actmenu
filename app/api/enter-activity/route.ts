@@ -4,6 +4,7 @@ import { setRichMenu, pushFlex } from "@/lib/line";
 import { activitySchema } from "@/lib/validation";
 
 type ActivityRow = {
+  activity_name: string;
   richmenu_id: string;
   flex_payload: unknown;
   start_date: Date | string | null;
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
 
   const activityResult = await query(
     `
-      SELECT richmenu_id, flex_payload, start_date, end_date
+      SELECT activity_name, richmenu_id, flex_payload, start_date, end_date
       FROM activities
       WHERE activity_key = $1
         AND is_active = TRUE
@@ -74,5 +75,5 @@ export async function POST(req: Request) {
     return fail("LINE API error", 502);
   }
 
-  return ok();
+  return ok({ activity_name: activity.activity_name });
 }

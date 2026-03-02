@@ -7,12 +7,14 @@ type VerifyResponse = {
   success: boolean;
   verified?: boolean;
   student_id?: string;
+  student_name?: string;
   error?: string;
 };
 
-type ApiResponse = {
+type EnterActivityResponse = {
   success: boolean;
   error?: string;
+  activity_name?: string;
 };
 
 declare global {
@@ -22,13 +24,15 @@ declare global {
       isLoggedIn: () => boolean;
       login: (options?: { redirectUri?: string }) => void;
       isInClient: () => boolean;
-      closeWindow: () => void;
+      openWindow: (options: { url: string; external?: boolean }) => void;
       getProfile: () => Promise<{ userId: string }>;
     };
   }
 }
 
 const LIFF_SCRIPT_SRC = "https://static.line-scdn.net/liff/edge/2/sdk.js";
+const LINE_OA_ID = "@896pwveo";
+const LINE_OA_URL = "https://lin.ee/zg6bkMq";
 
 function loadLiffScript(): Promise<void> {
   if (window.liff) {
@@ -69,12 +73,26 @@ function LiffPageContent() {
   const [errorMessage, setErrorMessage] = useState("");
   const [userId, setUserId] = useState("");
   const [isVerified, setIsVerified] = useState(false);
+  const [inLineClient, setInLineClient] = useState(false);
+  const [completed, setCompleted] = useState(false);
+
+  const [studentName, setStudentName] = useState("");
+  const [activityName, setActivityName] = useState("");
 
   const [studentId, setStudentId] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [idNumber, setIdNumber] = useState("");
 
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+
+  const openLineOaChat = () => {
+    if (window.liff?.isInClient()) {
+      window.liff.openWindow({ url: LINE_OA_URL, external: false });
+      return;
+    }
+
+    window.location.href = LINE_OA_URL;
+  };
 
   const enterActivity = async (lineUserId: string) => {
     const response = await fetch("/api/enter-activity", {
@@ -86,11 +104,13 @@ function LiffPageContent() {
       }),
     });
 
-    const data = (await response.json()) as ApiResponse;
+    const data = (await response.json()) as EnterActivityResponse;
 
     if (!response.ok || !data.success) {
       throw new Error(data.error || "Failed to enter activity");
     }
+
+    return data;
   };
 
   useEffect(() => {
@@ -145,6 +165,7 @@ function LiffPageContent() {
         }
 
         await window.liff.init({ liffId });
+        setInLineClient(window.liff.isInClient());
 
         if (!window.liff.isLoggedIn()) {
           const redirectUri = new URL(window.location.href);
@@ -171,12 +192,15 @@ function LiffPageContent() {
 
         if (verificationData.verified) {
           setIsVerified(true);
-          await enterActivity(lineUserId);
+          setStudentName(verificationData.student_name ?? verificationData.student_id ?? "-");
+          const enterResult = await enterActivity(lineUserId);
+          setActivityName(enterResult.activity_name ?? activity);
           setStatusMessage("Entered activity successfully.");
+
           if (window.liff.isInClient()) {
-            setTimeout(() => {
-              window.liff?.closeWindow();
-            }, 800);
+            openLineOaChat();
+          } else {
+            setCompleted(true);
           }
           return;
         }
@@ -227,12 +251,15 @@ function LiffPageContent() {
       }
 
       setIsVerified(true);
-      await enterActivity(userId);
+      setStudentName(verifyData.student_name ?? studentId);
+      const enterResult = await enterActivity(userId);
+      setActivityName(enterResult.activity_name ?? activity);
       setStatusMessage("Verified and entered activity successfully.");
+
       if (window.liff?.isInClient()) {
-        setTimeout(() => {
-          window.liff?.closeWindow();
-        }, 800);
+        openLineOaChat();
+      } else {
+        setCompleted(true);
       }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
@@ -246,7 +273,7 @@ function LiffPageContent() {
       <div className="mx-auto max-w-md px-4 py-10">
         <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <h1 className="text-xl font-semibold">Activity Check-in</h1>
-          <p className="mt-1 text-sm text-slate-600">Activity: {activity || "-"}</p>
+          <p className="mt-1 text-sm text-slate-600">Activity Key: {activity || "-"}</p>
 
           {loading ? <p className="mt-4 text-sm">Loading...</p> : null}
 
@@ -260,7 +287,24 @@ function LiffPageContent() {
             </p>
           ) : null}
 
-          {!loading && !isVerified ? (
+          {!loading && completed && !inLineClient ? (
+            <div className="mt-6 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm">
+                <span className="font-medium">Activity:</span> {activityName || activity}
+              </p>
+              <p className="text-sm">
+                <span className="font-medium">Student:</span> {studentName || "-"}
+              </p>
+              <a
+                href={LINE_OA_URL}
+                className="inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+              >
+                Go to LINE OA Chat ({LINE_OA_ID})
+              </a>
+            </div>
+          ) : null}
+
+          {!loading && !isVerified && !completed ? (
             <form className="mt-6 space-y-4" onSubmit={onVerifySubmit}>
               <div>
                 <label className="mb-1 block text-sm font-medium" htmlFor="student_id">

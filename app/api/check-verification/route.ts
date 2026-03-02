@@ -11,9 +11,10 @@ export async function GET(req: Request) {
 
   const result = await query(
     `
-      SELECT student_id, verified
-      FROM line_student_links
-      WHERE line_user_id = $1
+      SELECT l.student_id, l.verified, s.first_name, s.last_name
+      FROM line_student_links l
+      LEFT JOIN students_master s ON s.student_id = l.student_id
+      WHERE l.line_user_id = $1
       LIMIT 1
     `,
     [lineUserId]
@@ -23,11 +24,25 @@ export async function GET(req: Request) {
     return ok({ verified: false });
   }
 
-  const row = result.rows[0] as { student_id: string; verified: boolean };
+  const row = result.rows[0] as {
+    student_id: string;
+    verified: boolean;
+    first_name: string | null;
+    last_name: string | null;
+  };
+  const studentName = [row.first_name ?? "", row.last_name ?? ""].join(" ").trim();
 
   if (row.verified) {
-    return ok({ verified: true, student_id: row.student_id });
+    return ok({
+      verified: true,
+      student_id: row.student_id,
+      student_name: studentName || row.student_id,
+    });
   }
 
-  return ok({ verified: false, student_id: row.student_id });
+  return ok({
+    verified: false,
+    student_id: row.student_id,
+    student_name: studentName || row.student_id,
+  });
 }

@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   const studentResult = await query(
     `
-      SELECT student_id
+      SELECT student_id, first_name, last_name
       FROM students_master
       WHERE student_id = $1
         AND date_of_birth = $2
@@ -40,6 +40,12 @@ export async function POST(req: Request) {
   if (studentResult.rowCount === 0) {
     return ok({ verified: false });
   }
+  const student = studentResult.rows[0] as {
+    student_id: string;
+    first_name: string | null;
+    last_name: string | null;
+  };
+  const studentName = [student.first_name ?? "", student.last_name ?? ""].join(" ").trim();
 
   await query(
     `
@@ -54,5 +60,5 @@ export async function POST(req: Request) {
     [line_user_id, student_id]
   );
 
-  return ok({ verified: true });
+  return ok({ verified: true, student_name: studentName || student.student_id });
 }
