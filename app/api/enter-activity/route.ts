@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
   const verificationResult = await query(
     `
-      SELECT 1
+      SELECT student_id
       FROM line_student_links
       WHERE line_user_id = $1
         AND verified = TRUE
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
   if (verificationResult.rowCount === 0) {
     return fail("Not verified", 403);
   }
+  const verification = verificationResult.rows[0] as { student_id: string };
 
   const activityResult = await query(
     `
@@ -74,6 +75,15 @@ export async function POST(req: Request) {
   } catch {
     return fail("LINE API error", 502);
   }
+
+  await query(
+    `
+      INSERT INTO activity_checkins (activity_key, line_user_id, student_id)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (activity_key, line_user_id) DO NOTHING
+    `,
+    [activity_key, line_user_id, verification.student_id]
+  );
 
   return ok({ activity_name: activity.activity_name });
 }

@@ -270,45 +270,66 @@ function LiffPageContent() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-md px-4 py-10">
-        <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-xl font-semibold">Activity Check-in</h1>
-          <p className="mt-1 text-sm text-slate-600">Activity Key: {activity || "-"}</p>
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-100 via-white to-sky-100 text-slate-900">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-16 left-1/2 h-52 w-52 -translate-x-1/2 rounded-full bg-cyan-200/50 blur-3xl" />
+        <div className="absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-blue-200/40 blur-3xl" />
+      </div>
 
-          {loading ? <p className="mt-4 text-sm">Loading...</p> : null}
+      <div className="relative mx-auto max-w-md px-4 py-10">
+        <div className="rounded-2xl border border-white/70 bg-white/90 p-6 shadow-xl shadow-slate-300/40 backdrop-blur">
+          <div className="mb-6">
+            <p className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
+              NBU Activity
+            </p>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight">Activity Check-in</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Activity Key: <span className="font-medium text-slate-800">{activity || "-"}</span>
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Loading...
+            </div>
+          ) : null}
 
           {errorMessage ? (
-            <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</p>
+            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </p>
           ) : null}
 
           {statusMessage ? (
-            <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
               {statusMessage}
             </p>
           ) : null}
 
           {!loading && completed && !inLineClient ? (
-            <div className="mt-6 space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm">
-                <span className="font-medium">Activity:</span> {activityName || activity}
-              </p>
-              <p className="text-sm">
-                <span className="font-medium">Student:</span> {studentName || "-"}
-              </p>
+            <div className="mt-5 space-y-4 rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white p-5">
+              <p className="text-sm font-medium text-emerald-700">Check-in completed successfully</p>
+              <div className="space-y-2 text-sm text-slate-700">
+                <p>
+                  <span className="font-medium text-slate-900">Activity:</span> {activityName || activity}
+                </p>
+                <p>
+                  <span className="font-medium text-slate-900">Student:</span> {studentName || "-"}
+                </p>
+              </div>
               <a
                 href={lineOaUrl || "#"}
-                className="inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Go to LINE OA Chat ({lineOaId || "OA"})
+                Open LINE OA Chat ({lineOaId || "OA"})
               </a>
             </div>
           ) : null}
 
           {!loading && !isVerified && !completed ? (
-            <form className="mt-6 space-y-4" onSubmit={onVerifySubmit}>
-              <div>
-                <label className="mb-1 block text-sm font-medium" htmlFor="student_id">
+            <form className="space-y-4" onSubmit={onVerifySubmit}>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" htmlFor="student_id">
                   Student ID
                 </label>
                 <input
@@ -316,13 +337,13 @@ function LiffPageContent() {
                   type="text"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none ring-sky-200 transition focus:border-sky-400 focus:ring-4"
                   required
                 />
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium" htmlFor="date_of_birth">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" htmlFor="date_of_birth">
                   Date of Birth (DD-MM-YYYY)
                 </label>
                 <input
@@ -331,21 +352,21 @@ function LiffPageContent() {
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                   placeholder="DD-MM-YYYY"
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none ring-sky-200 transition focus:border-sky-400 focus:ring-4"
                   required
                 />
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium" htmlFor="id_number">
-                  ID Number
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" htmlFor="id_number">
+                  Citizen ID / Passport No.
                 </label>
                 <input
                   id="id_number"
                   type="text"
                   value={idNumber}
                   onChange={(e) => setIdNumber(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none ring-sky-200 transition focus:border-sky-400 focus:ring-4"
                   required
                 />
               </div>
@@ -353,9 +374,9 @@ function LiffPageContent() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                className="mt-2 w-full rounded-xl bg-gradient-to-r from-slate-900 to-slate-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-slate-800 hover:to-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Submitting..." : "Verify and Enter"}
+                {submitting ? "Submitting..." : "Verify and Check-in"}
               </button>
             </form>
           ) : null}
