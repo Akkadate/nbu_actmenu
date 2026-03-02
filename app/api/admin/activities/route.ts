@@ -5,7 +5,7 @@ import { adminActivityUpsertSchema } from "@/lib/validation";
 export async function GET() {
   const result = await query(
     `
-      SELECT activity_key, activity_name, richmenu_id, is_active, start_date, end_date, created_at
+      SELECT activity_key, activity_name, richmenu_id, flex_payload, is_active, start_date, end_date, created_at
       FROM activities
       ORDER BY created_at DESC
     `

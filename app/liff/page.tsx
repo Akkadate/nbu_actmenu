@@ -58,6 +58,7 @@ function loadLiffScript(): Promise<void> {
 export default function LiffPage() {
   const searchParams = useSearchParams();
   const activityParam = useMemo(() => searchParams.get("activity") ?? "", [searchParams]);
+  const liffStateParam = useMemo(() => searchParams.get("liff.state") ?? "", [searchParams]);
   const [activity, setActivity] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -97,9 +98,26 @@ export default function LiffPage() {
       return;
     }
 
+    if (liffStateParam) {
+      try {
+        const decoded = decodeURIComponent(liffStateParam);
+        const stateUrl = decoded.startsWith("http")
+          ? new URL(decoded)
+          : new URL(decoded, window.location.origin);
+        const stateActivity = stateUrl.searchParams.get("activity") ?? "";
+        if (stateActivity) {
+          setActivity(stateActivity);
+          sessionStorage.setItem("activity_key", stateActivity);
+          return;
+        }
+      } catch {
+        // fall through to sessionStorage fallback
+      }
+    }
+
     const savedActivity = sessionStorage.getItem("activity_key") ?? "";
     setActivity(savedActivity);
-  }, [activityParam]);
+  }, [activityParam, liffStateParam]);
 
   useEffect(() => {
     const run = async () => {
@@ -109,7 +127,9 @@ export default function LiffPage() {
 
       try {
         if (!activity) {
-          throw new Error("Missing activity key");
+          setLoading(false);
+          setErrorMessage("Missing activity key");
+          return;
         }
 
         if (!liffId) {
