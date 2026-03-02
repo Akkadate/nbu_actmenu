@@ -2,6 +2,14 @@ import { ok, fail } from "@/lib/api";
 import { query } from "@/lib/db";
 import { verifySchema } from "@/lib/validation";
 
+function toIsoDate(value: string): string | null {
+  const match = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!match) return null;
+
+  const [, dd, mm, yyyy] = match;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export async function POST(req: Request) {
   const body = await req.json();
   const parsed = verifySchema.safeParse(body);
@@ -11,6 +19,11 @@ export async function POST(req: Request) {
   }
 
   const { line_user_id, student_id, date_of_birth, id_number } = parsed.data;
+  const isoDateOfBirth = toIsoDate(date_of_birth);
+
+  if (!isoDateOfBirth) {
+    return fail("Invalid input", 400);
+  }
 
   const studentResult = await query(
     `
@@ -21,7 +34,7 @@ export async function POST(req: Request) {
         AND (citizen_id = $3 OR passport_no = $3)
       LIMIT 1
     `,
-    [student_id, date_of_birth, id_number]
+    [student_id, isoDateOfBirth, id_number]
   );
 
   if (studentResult.rowCount === 0) {
