@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type VerifyResponse = {
@@ -55,7 +55,7 @@ function loadLiffScript(): Promise<void> {
   });
 }
 
-export default function LiffPage() {
+function LiffPageContent() {
   const searchParams = useSearchParams();
   const activityParam = useMemo(() => searchParams.get("activity") ?? "", [searchParams]);
   const liffStateParam = useMemo(() => searchParams.get("liff.state") ?? "", [searchParams]);
@@ -305,5 +305,13 @@ export default function LiffPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LiffPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-slate-50 text-slate-900" />}>
+      <LiffPageContent />
+    </Suspense>
   );
 }
