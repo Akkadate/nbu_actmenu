@@ -124,16 +124,24 @@ function LiffPageContent() {
     }
   };
 
-  const completeCheckIn = async (lineUserId: string, name: string) => {
+  const performCheckIn = async (lineUserId: string, name: string) => {
+    setNeedsAddFriend(false);
     setStudentName(name);
-
-    const friendshipReady = await ensureFriendship();
-    if (!friendshipReady) return;
-
     const enterResult = await enterActivity(lineUserId);
     setActivityName(enterResult.activity_name ?? activity);
     setCompleted(true);
     setStatusMessage("Check-in completed successfully.");
+    if (inLineClient || isLineAppBrowser()) {
+      setTimeout(() => {
+        openLineOaChat();
+      }, 300);
+    }
+  };
+
+  const completeCheckIn = async (lineUserId: string, name: string) => {
+    const friendshipReady = await ensureFriendship();
+    if (!friendshipReady) return;
+    await performCheckIn(lineUserId, name);
   };
 
   const enterActivity = async (lineUserId: string) => {
@@ -323,7 +331,7 @@ function LiffPageContent() {
     setErrorMessage("");
 
     try {
-      await completeCheckIn(userId, studentName || studentId || "-");
+      await performCheckIn(userId, studentName || studentId || "-");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
     } finally {
