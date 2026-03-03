@@ -28,6 +28,14 @@ export default function AdminLayout({
             >
               Manual
             </Link>
+            <form action="/api/admin/logout" method="post">
+              <button
+                type="submit"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100"
+              >
+                Logout
+              </button>
+            </form>
           </nav>
         </div>
       </header>
