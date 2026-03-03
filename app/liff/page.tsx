@@ -151,11 +151,10 @@ function LiffPageContent() {
 
   const proceedAfterVerified = async (lineUserId: string, name: string) => {
     setStudentName(name || "-");
-
-    const friendFlag = await getFriendFlag();
     const inLine = isInLineClient();
+    const friendFlag = await getFriendFlag();
 
-    if (friendFlag) {
+    try {
       await enterActivity(lineUserId);
       setStatusMessage("Check-in completed successfully.");
 
@@ -167,17 +166,26 @@ function LiffPageContent() {
 
       setStage("summary");
       return;
-    }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected error";
 
-    if (inLine) {
-      setStatusMessage("Please add LINE OA friend to continue.");
-      setStage("redirecting");
-      setTimeout(() => openLineOaChat(), 200);
-      return;
-    }
+      // If LINE API cannot send rich menu/flex and user is not a friend yet,
+      // guide user to add OA first.
+      if (message === "LINE API error" && !friendFlag) {
+        if (inLine) {
+          setStatusMessage("Please add LINE OA friend to continue.");
+          setStage("redirecting");
+          setTimeout(() => openLineOaChat(), 200);
+          return;
+        }
 
-    setStatusMessage("Login successful. Please open LINE OA chat to continue.");
-    setStage("summary");
+        setStatusMessage("Login successful. Please open LINE OA chat to continue.");
+        setStage("summary");
+        return;
+      }
+
+      throw error;
+    }
   };
 
   useEffect(() => {
