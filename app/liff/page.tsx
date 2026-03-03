@@ -34,6 +34,7 @@ declare global {
       login: (options?: { redirectUri?: string }) => void;
       isInClient: () => boolean;
       openWindow: (options: { url: string; external?: boolean }) => void;
+      getFriendship: () => Promise<{ friendFlag: boolean }>;
       getProfile: () => Promise<{ userId: string }>;
     };
   }
@@ -81,6 +82,7 @@ function LiffPageContent() {
   const [isVerified, setIsVerified] = useState(false);
   const [inLineClient, setInLineClient] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [needsAddFriend, setNeedsAddFriend] = useState(false);
 
   const [studentName, setStudentName] = useState("");
   const [activityName, setActivityName] = useState("");
@@ -101,6 +103,37 @@ function LiffPageContent() {
       return;
     }
     window.location.replace(lineOaUrl);
+  };
+
+  const ensureFriendship = async () => {
+    if (!window.liff) return true;
+
+    try {
+      const friendship = await window.liff.getFriendship();
+      if (!friendship.friendFlag) {
+        setNeedsAddFriend(true);
+        setStatusMessage("Please add LINE OA friend first, then continue.");
+        return false;
+      }
+      setNeedsAddFriend(false);
+      return true;
+    } catch {
+      setNeedsAddFriend(true);
+      setStatusMessage("Please add LINE OA friend first, then continue.");
+      return false;
+    }
+  };
+
+  const completeCheckIn = async (lineUserId: string, name: string) => {
+    setStudentName(name);
+
+    const friendshipReady = await ensureFriendship();
+    if (!friendshipReady) return;
+
+    const enterResult = await enterActivity(lineUserId);
+    setActivityName(enterResult.activity_name ?? activity);
+    setCompleted(true);
+    setStatusMessage("Check-in completed successfully.");
   };
 
   const enterActivity = async (lineUserId: string) => {
@@ -223,16 +256,10 @@ function LiffPageContent() {
 
         if (verificationData.verified) {
           setIsVerified(true);
-          setStudentName(verificationData.student_name ?? verificationData.student_id ?? "-");
-          const enterResult = await enterActivity(lineUserId);
-          setActivityName(enterResult.activity_name ?? activity);
-          setStatusMessage("Entered activity successfully.");
-
-          if (inClient) {
-            openLineOaChat();
-          } else {
-            setCompleted(true);
-          }
+          await completeCheckIn(
+            lineUserId,
+            verificationData.student_name ?? verificationData.student_id ?? "-"
+          );
           return;
         }
 
@@ -282,16 +309,21 @@ function LiffPageContent() {
       }
 
       setIsVerified(true);
-      setStudentName(verifyData.student_name ?? studentId);
-      const enterResult = await enterActivity(userId);
-      setActivityName(enterResult.activity_name ?? activity);
-      setStatusMessage("Verified and entered activity successfully.");
+      await completeCheckIn(userId, verifyData.student_name ?? studentId);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-      if (inLineClient || isLineAppBrowser()) {
-        openLineOaChat();
-      } else {
-        setCompleted(true);
-      }
+  const onContinueAfterAddFriend = async () => {
+    if (!userId || completed) return;
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      await completeCheckIn(userId, studentName || studentId || "-");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
     } finally {
@@ -337,7 +369,7 @@ function LiffPageContent() {
             </p>
           ) : null}
 
-          {!loading && completed && !inLineClient ? (
+          {!loading && completed ? (
             <div className="mt-5 space-y-4 rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white p-5">
               <p className="text-sm font-medium text-emerald-700">Check-in completed successfully</p>
               <div className="space-y-2 text-sm text-slate-700">
@@ -357,7 +389,30 @@ function LiffPageContent() {
             </div>
           ) : null}
 
-          {!loading && !isVerified && !completed ? (
+          {!loading && needsAddFriend && !completed ? (
+            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-800">
+                Please add LINE OA friend first, then press continue.
+              </p>
+              <button
+                type="button"
+                onClick={openLineOaChat}
+                className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
+              >
+                Add LINE OA Friend
+              </button>
+              <button
+                type="button"
+                onClick={onContinueAfterAddFriend}
+                disabled={submitting}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 disabled:opacity-60"
+              >
+                {submitting ? "Checking..." : "I already added friend, continue"}
+              </button>
+            </div>
+          ) : null}
+
+          {!loading && !isVerified && !completed && !needsAddFriend ? (
             <form className="space-y-4" onSubmit={onVerifySubmit}>
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium" htmlFor="student_id">
