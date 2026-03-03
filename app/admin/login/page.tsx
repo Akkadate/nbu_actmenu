@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type AuthResponse = {
@@ -8,7 +8,7 @@ type AuthResponse = {
   error?: string;
 };
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = useMemo(() => searchParams.get("next") || "/admin", [searchParams]);
@@ -76,5 +76,13 @@ export default function AdminLoginPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-slate-50 p-6 text-slate-900" />}>
+      <AdminLoginContent />
+    </Suspense>
   );
 }
