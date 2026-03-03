@@ -308,7 +308,9 @@ function LiffPageContent() {
       }
 
       if (!verifyData.verified) {
-        setStatusMessage("Verification failed. Please check your information.");
+        setErrorMessage(
+          "ยืนยันตัวตนไม่สำเร็จ กรุณาตรวจสอบข้อมูล (รหัสนักศึกษา / วันเกิด / เลขบัตรหรือพาสปอร์ต) แล้วลองอีกครั้ง | Verification failed. Please check your student ID, date of birth, and citizen/passport ID, then try again."
+        );
         return;
       }
 
