@@ -87,7 +87,6 @@ function LiffPageContent() {
   const [idNumber, setIdNumber] = useState("");
 
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-  const lineOaId = process.env.NEXT_PUBLIC_LINE_OA_ID ?? "";
   const lineOaUrl = process.env.NEXT_PUBLIC_LINE_OA_URL ?? "";
 
   const isInLineClient = () => {
@@ -384,7 +383,7 @@ function LiffPageContent() {
                 onClick={openLineOaChat}
                 className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Open LINE OA Chat ({lineOaId || "OA"})
+                Open LINE OA
               </button>
             </div>
           ) : null}
