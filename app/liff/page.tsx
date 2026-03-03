@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -309,7 +309,7 @@ function LiffPageContent() {
 
       if (!verifyData.verified) {
         setErrorMessage(
-          "ยืนยันตัวตนไม่สำเร็จ กรุณาตรวจสอบข้อมูล (รหัสนักศึกษา / วันเกิด / เลขบัตรหรือพาสปอร์ต) แล้วลองอีกครั้ง | Verification failed. Please check your student ID, date of birth, and citizen/passport ID, then try again."
+          "TH: ยืนยันตัวตนไม่สำเร็จ กรุณาตรวจสอบข้อมูล (รหัสนักศึกษา / วันเกิด / เลขบัตรหรือพาสปอร์ต) แล้วลองอีกครั้ง\nEN: Verification failed. Please check your student ID, date of birth, and citizen/passport ID, then try again."
         );
         return;
       }
