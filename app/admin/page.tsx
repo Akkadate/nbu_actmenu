@@ -62,12 +62,20 @@ export default function AdminPage() {
       <div className="mx-auto max-w-6xl space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Activities</h1>
-          <Link
-            href="/admin/activity"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-          >
-            Create New
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/manual"
+              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+            >
+              คู่มือการใช้งาน
+            </Link>
+            <Link
+              href="/admin/activity"
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+            >
+              Create New
+            </Link>
+          </div>
         </div>
 
         {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
