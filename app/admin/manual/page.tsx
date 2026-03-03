@@ -146,9 +146,72 @@ h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px;}
 export default function AdminManualPage() {
   return (
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
-      <div className="mx-auto max-w-6xl space-y-3">
-        <h1 className="text-2xl font-semibold">Manual</h1>
-        <p className="text-sm text-slate-600">LIFF Activity Check-in flow reference</p>
+      <div className="mx-auto max-w-6xl space-y-6">
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h1 className="text-2xl font-semibold">คู่มือการใช้งานระบบ NBU ActMenu</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            เอกสารนี้อธิบายวิธีใช้งานระบบสำหรับผู้ดูแลระบบและผู้ใช้งานปลายทาง โดย flow diagram
+            ด้านล่างใช้เป็นภาพอ้างอิงลำดับการทำงาน
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold">1) งานของผู้ดูแลระบบ (Admin)</h2>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-700">
+            <li>เข้าเมนู `Activities` ที่หน้า `/admin`</li>
+            <li>กด `Create New` เพื่อสร้างกิจกรรมใหม่</li>
+            <li>กรอก `activity_key`, `activity_name`, `richmenu_id`, `flex_payload`</li>
+            <li>กำหนดช่วงเวลา `start_date` / `end_date` (ถ้ามี)</li>
+            <li>บันทึกแล้วทดสอบผ่านลิงก์ `.../liff?activity=activity_key`</li>
+            <li>หากต้องการแก้ไข ให้กด `Edit` และอัปเดตข้อมูลได้ทันที</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold">2) งานของนักศึกษา (User)</h2>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-700">
+            <li>สแกน QR หรือลิงก์ไปหน้า `/liff?activity=...`</li>
+            <li>ระบบ LIFF จะพาเข้าสู่ LINE login อัตโนมัติ</li>
+            <li>ถ้ายังไม่ยืนยันตัวตน ให้กรอก รหัสนักศึกษา / วันเกิด / บัตรหรือพาสปอร์ต</li>
+            <li>เมื่อผ่านแล้ว ระบบจะทำ check-in และส่ง rich menu + flex message ตามกิจกรรม</li>
+            <li>กรณีเปิดจาก browser ภายนอก จะเห็นหน้า summary และปุ่มเข้า LINE OA chat</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold">3) การตรวจสอบข้อมูล</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+            <li>สถานะผูก LINE กับนักศึกษา: ตาราง `line_student_links`</li>
+            <li>ประวัติการเช็กอินกิจกรรม: ตาราง `activity_checkins`</li>
+            <li>ข้อมูลกิจกรรม: ตาราง `activities`</li>
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold">4) Checklist ก่อนใช้งานจริง</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+            <li>ตั้งค่า `.env` ครบ (`DATABASE_URL`, `LINE_CHANNEL_ACCESS_TOKEN`, `NEXT_PUBLIC_LIFF_ID`)</li>
+            <li>รัน migration ครบทุกไฟล์ใน `db/migrations`</li>
+            <li>ทดสอบทั้งกรณีผู้ใช้ที่เป็นเพื่อน OA แล้ว และยังไม่เป็นเพื่อน</li>
+            <li>ยืนยันว่า rich menu และ flex message แสดงใน OA chat ถูกต้อง</li>
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold">5) หมายเหตุ Deploy (Production)</h2>
+          <pre className="mt-3 overflow-x-auto rounded-md bg-slate-900 p-4 text-xs text-slate-100">
+{`git pull
+npm ci
+npm run build
+pm2 reload ecosystem.config.js --only nbu-actmenu`}
+          </pre>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold">Appendix: LIFF Activity Flow Diagram</h2>
+          <p className="mt-1 text-sm text-slate-600">แผนภาพลำดับการทำงานของระบบ</p>
+        </section>
+
         <iframe
           title="LIFF Activity Flow Manual"
           srcDoc={manualHtml}
