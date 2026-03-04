@@ -15,6 +15,7 @@ type EnterActivityResponse = {
   success: boolean;
   error?: string;
   activity_name?: string;
+  pending_friend?: boolean;
 };
 
 type ActivitiesResponse = {
@@ -41,6 +42,25 @@ declare global {
 }
 
 const LIFF_SCRIPT_SRC = "https://static.line-scdn.net/liff/edge/2/sdk.js";
+const LINE_APP_ATTEMPT_KEY = "line_app_open_attempted";
+
+function normalizeLiffId(value: string | undefined): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      const url = new URL(trimmed);
+      const parts = url.pathname.split("/").filter(Boolean);
+      return parts[parts.length - 1] ?? "";
+    }
+  } catch {
+    return trimmed;
+  }
+
+  return trimmed;
+}
 
 function loadLiffScript(): Promise<void> {
   if (window.liff) return Promise.resolve();
@@ -71,6 +91,7 @@ function LiffPageContent() {
   const searchParams = useSearchParams();
   const activityParam = useMemo(() => searchParams.get("activity") ?? "", [searchParams]);
   const liffStateParam = useMemo(() => searchParams.get("liff.state") ?? "", [searchParams]);
+  const lineAppParam = useMemo(() => searchParams.get("lineapp") ?? "", [searchParams]);
 
   const [activity, setActivity] = useState("");
   const [activityName, setActivityName] = useState("");
@@ -81,12 +102,14 @@ function LiffPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [awaitingFriend, setAwaitingFriend] = useState(false);
+  const [checkingFriend, setCheckingFriend] = useState(false);
 
   const [studentId, setStudentId] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [idNumber, setIdNumber] = useState("");
 
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  const liffId = normalizeLiffId(process.env.NEXT_PUBLIC_LIFF_ID);
   const lineOaUrl = process.env.NEXT_PUBLIC_LINE_OA_URL ?? "";
 
   const isInLineClient = () => {
@@ -95,12 +118,16 @@ function LiffPageContent() {
     return byLiff || byUa;
   };
 
-  const openLineOaChat = () => {
+  const openLineOaChat = (replace = true) => {
     if (!lineOaUrl) {
       setErrorMessage("Missing NEXT_PUBLIC_LINE_OA_URL");
       return;
     }
-    window.location.replace(lineOaUrl);
+    if (replace) {
+      window.location.replace(lineOaUrl);
+      return;
+    }
+    window.open(lineOaUrl, "_blank");
   };
 
   const getFriendFlag = async () => {
@@ -113,7 +140,7 @@ function LiffPageContent() {
     }
   };
 
-  const enterActivity = async (lineUserId: string) => {
+  const enterActivity = async (lineUserId: string): Promise<EnterActivityResponse> => {
     const response = await fetch("/api/enter-activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -132,6 +159,8 @@ function LiffPageContent() {
     if (data.activity_name) {
       setActivityName(data.activity_name);
     }
+
+    return data;
   };
 
   const loadActivityName = async (activityKey: string) => {
@@ -150,11 +179,20 @@ function LiffPageContent() {
 
   const proceedAfterVerified = async (lineUserId: string, name: string) => {
     setStudentName(name || "-");
+    setAwaitingFriend(false);
     const inLine = isInLineClient();
     const friendFlag = await getFriendFlag();
 
     try {
-      await enterActivity(lineUserId);
+      const enterResult = await enterActivity(lineUserId);
+
+      if (enterResult.pending_friend) {
+        setAwaitingFriend(true);
+        setStatusMessage("Please add LINE OA friend, then tap Continue.");
+        setStage("summary");
+        return;
+      }
+
       setStatusMessage("Check-in completed successfully.");
 
       if (inLine) {
@@ -171,19 +209,56 @@ function LiffPageContent() {
       // If LINE API cannot send rich menu/flex and user is not a friend yet,
       // guide user to add OA first.
       if (message === "LINE API error" && !friendFlag) {
-        if (inLine) {
-          setStatusMessage("Please add LINE OA friend to continue.");
-          setStage("redirecting");
-          setTimeout(() => openLineOaChat(), 200);
-          return;
-        }
-
-        setStatusMessage("Login successful. Please open LINE OA chat to continue.");
+        setAwaitingFriend(true);
+        setStatusMessage("Please add LINE OA friend, then tap Continue.");
         setStage("summary");
         return;
       }
 
       throw error;
+    }
+  };
+
+  const onContinueAfterAddFriend = async () => {
+    if (!userId) {
+      setErrorMessage("Missing LINE user profile");
+      return;
+    }
+
+    setCheckingFriend(true);
+    setErrorMessage("");
+
+    try {
+      const friendFlag = await getFriendFlag();
+      if (!friendFlag) {
+        setErrorMessage(
+          "TH: ยังไม่พบการเป็นเพื่อน LINE OA กรุณากด Add Friend ก่อน แล้วกด Continue อีกครั้ง\nEN: LINE OA friendship not found yet. Please add friend first, then tap Continue again."
+        );
+        return;
+      }
+
+      const enterResult = await enterActivity(userId);
+      if (enterResult.pending_friend) {
+        setErrorMessage(
+          "TH: ระบบกำลังซิงก์สถานะเพื่อน กรุณารอสักครู่แล้วกด Continue อีกครั้ง\nEN: Friendship status is syncing. Please wait a moment and tap Continue again."
+        );
+        return;
+      }
+
+      setAwaitingFriend(false);
+      setStatusMessage("Check-in completed successfully.");
+
+      if (isInLineClient()) {
+        setStage("redirecting");
+        setTimeout(() => openLineOaChat(), 200);
+        return;
+      }
+
+      setStage("summary");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unexpected error");
+    } finally {
+      setCheckingFriend(false);
     }
   };
 
@@ -233,6 +308,22 @@ function LiffPageContent() {
           throw new Error("Missing NEXT_PUBLIC_LIFF_ID");
         }
 
+        // Open LINE app first for external browsers to maximize in-app LIFF login success.
+        if (!isInLineClient() && lineAppParam !== "0") {
+          const attempted = sessionStorage.getItem(LINE_APP_ATTEMPT_KEY);
+          if (!attempted) {
+            sessionStorage.setItem(LINE_APP_ATTEMPT_KEY, "1");
+            const bridgeUrl = new URL("/open-liff", window.location.origin);
+            bridgeUrl.searchParams.set("activity", activity);
+            window.location.replace(bridgeUrl.toString());
+            return;
+          }
+        }
+
+        if (lineAppParam === "0") {
+          sessionStorage.removeItem(LINE_APP_ATTEMPT_KEY);
+        }
+
         await loadLiffScript();
         if (!window.liff) {
           throw new Error("LIFF SDK unavailable");
@@ -277,7 +368,7 @@ function LiffPageContent() {
     };
 
     void run();
-  }, [activity, liffId]);
+  }, [activity, liffId, lineAppParam]);
 
   const onVerifySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -378,13 +469,33 @@ function LiffPageContent() {
                   <span className="font-medium text-slate-900">Student:</span> {studentName || "-"}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={openLineOaChat}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Open LINE OA
-              </button>
+              {awaitingFriend ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => openLineOaChat(false)}
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Add LINE OA Friend
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onContinueAfterAddFriend}
+                    disabled={checkingFriend}
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {checkingFriend ? "Checking..." : "I already added friend, Continue"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openLineOaChat()}
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Open LINE OA
+                </button>
+              )}
             </div>
           ) : null}
 

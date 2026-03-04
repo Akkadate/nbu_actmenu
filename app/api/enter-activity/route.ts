@@ -1,6 +1,6 @@
 import { ok, fail } from "@/lib/api";
 import { query } from "@/lib/db";
-import { setRichMenu, pushFlex } from "@/lib/line";
+import { dispatchLineContent, queuePendingDispatch } from "@/lib/line-dispatch";
 import { activitySchema } from "@/lib/validation";
 
 type ActivityRow = {
@@ -69,11 +69,24 @@ export async function POST(req: Request) {
     }
   }
 
-  try {
-    await setRichMenu(line_user_id, activity.richmenu_id);
-    await pushFlex(line_user_id, activity.flex_payload);
-  } catch {
+  const dispatchResult = await dispatchLineContent(
+    line_user_id,
+    activity.richmenu_id,
+    activity.flex_payload
+  );
+
+  if (!dispatchResult.sent && dispatchResult.reason === "line_error") {
     return fail("LINE API error", 502);
+  }
+
+  if (!dispatchResult.sent && dispatchResult.reason === "not_friend") {
+    await queuePendingDispatch({
+      lineUserId: line_user_id,
+      studentId: verification.student_id,
+      activityKey: activity_key,
+      richMenuId: activity.richmenu_id,
+      flexPayload: activity.flex_payload,
+    });
   }
 
   await query(
@@ -85,5 +98,8 @@ export async function POST(req: Request) {
     [activity_key, line_user_id, verification.student_id]
   );
 
-  return ok({ activity_name: activity.activity_name });
+  return ok({
+    activity_name: activity.activity_name,
+    pending_friend: !dispatchResult.sent && dispatchResult.reason === "not_friend",
+  });
 }
