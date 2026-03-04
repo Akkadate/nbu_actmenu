@@ -188,7 +188,9 @@ function LiffPageContent() {
 
       if (enterResult.pending_friend) {
         setAwaitingFriend(true);
-        setStatusMessage("Please add LINE OA friend, then tap Continue.");
+        setStatusMessage(
+          "Please add LINE OA friend. After adding friend, return to this page and the system will continue automatically."
+        );
         setStage("summary");
         return;
       }
@@ -210,7 +212,9 @@ function LiffPageContent() {
       // guide user to add OA first.
       if (message === "LINE API error" && !friendFlag) {
         setAwaitingFriend(true);
-        setStatusMessage("Please add LINE OA friend, then tap Continue.");
+        setStatusMessage(
+          "Please add LINE OA friend. After adding friend, return to this page and the system will continue automatically."
+        );
         setStage("summary");
         return;
       }
@@ -261,6 +265,64 @@ function LiffPageContent() {
       setCheckingFriend(false);
     }
   };
+
+  useEffect(() => {
+    if (!awaitingFriend || stage !== "summary" || !userId || checkingFriend) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const tryFinalize = async () => {
+      if (cancelled || checkingFriend) {
+        return;
+      }
+
+      const friendFlag = await getFriendFlag();
+      if (!friendFlag || cancelled) {
+        return;
+      }
+
+      setCheckingFriend(true);
+      setErrorMessage("");
+
+      try {
+        const enterResult = await enterActivity(userId);
+        if (enterResult.pending_friend) {
+          setStatusMessage("Friend detected. Syncing status...");
+          return;
+        }
+
+        setAwaitingFriend(false);
+        setStatusMessage("Check-in completed successfully.");
+
+        if (isInLineClient()) {
+          setStage("redirecting");
+          setTimeout(() => openLineOaChat(), 200);
+          return;
+        }
+
+        setStage("summary");
+      } catch {
+        // keep polling; user can still press Continue manually
+      } finally {
+        if (!cancelled) {
+          setCheckingFriend(false);
+        }
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void tryFinalize();
+    }, 1500);
+
+    void tryFinalize();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [awaitingFriend, stage, userId, checkingFriend]);
 
   useEffect(() => {
     if (activityParam) {
@@ -488,6 +550,9 @@ function LiffPageContent() {
                   >
                     {checkingFriend ? "Checking..." : "I already added friend, Continue"}
                   </button>
+                  <p className="text-xs text-slate-500">
+                    This page will auto-check your friend status every few seconds.
+                  </p>
                 </div>
               ) : (
                 <button
