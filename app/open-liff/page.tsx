@@ -51,6 +51,7 @@ export default function OpenLiffPage() {
   const liffId = useMemo(() => normalizeLiffId(process.env.NEXT_PUBLIC_LIFF_ID), []);
   const lineOaUrl = process.env.NEXT_PUBLIC_LINE_OA_URL ?? "";
   const [activity, setActivity] = useState("");
+  const [activityResolved, setActivityResolved] = useState(false);
 
   useEffect(() => {
     const resolved = resolveActivity();
@@ -59,6 +60,7 @@ export default function OpenLiffPage() {
       sessionStorage.setItem("activity_key", resolved);
       localStorage.setItem("activity_key", resolved);
     }
+    setActivityResolved(true);
   }, []);
 
   const deepLink = useMemo(() => {
@@ -79,7 +81,7 @@ export default function OpenLiffPage() {
   }, [activity, liffId]);
 
   useEffect(() => {
-    if (!deepLink || !fallbackLiffUrl) return;
+    if (!activityResolved || !activity || !deepLink || !fallbackLiffUrl) return;
 
     const timer = window.setTimeout(() => {
       window.location.replace(fallbackLiffUrl);
@@ -90,7 +92,7 @@ export default function OpenLiffPage() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [deepLink, fallbackLiffUrl]);
+  }, [activity, activityResolved, deepLink, fallbackLiffUrl]);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
@@ -103,13 +105,15 @@ export default function OpenLiffPage() {
         <div className="mt-5 space-y-3">
           <a
             href={deepLink || "#"}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-disabled={!activity}
           >
             Open in LINE App
           </a>
           <a
             href={fallbackLiffUrl || "#"}
-            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-disabled={!activity}
           >
             Continue on Web
           </a>
