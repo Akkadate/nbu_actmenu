@@ -266,6 +266,7 @@ function LiffPageContent() {
     if (activityParam) {
       setActivity(activityParam);
       sessionStorage.setItem("activity_key", activityParam);
+      localStorage.setItem("activity_key", activityParam);
       return;
     }
 
@@ -279,6 +280,7 @@ function LiffPageContent() {
         if (stateActivity) {
           setActivity(stateActivity);
           sessionStorage.setItem("activity_key", stateActivity);
+          localStorage.setItem("activity_key", stateActivity);
           return;
         }
       } catch {
@@ -286,7 +288,7 @@ function LiffPageContent() {
       }
     }
 
-    setActivity(sessionStorage.getItem("activity_key") ?? "");
+    setActivity(sessionStorage.getItem("activity_key") ?? localStorage.getItem("activity_key") ?? "");
   }, [activityParam, liffStateParam]);
 
   useEffect(() => {
@@ -541,6 +543,9 @@ function LiffPageContent() {
                   className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none ring-sky-200 transition focus:border-sky-400 focus:ring-4"
                   required
                 />
+                <p className="text-right text-xs text-slate-500">
+                  {idNumber.length} characters entered
+                </p>
               </div>
 
               <button

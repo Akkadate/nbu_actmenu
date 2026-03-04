@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function normalizeLiffId(value: string | undefined): string {
   if (!value) return "";
@@ -20,16 +20,46 @@ function normalizeLiffId(value: string | undefined): string {
   return trimmed;
 }
 
-function getParam(name: string): string {
+function resolveActivity(): string {
   if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get(name) ?? "";
+
+  const params = new URLSearchParams(window.location.search);
+  const directActivity = params.get("activity") ?? "";
+  if (directActivity) return directActivity;
+
+  const liffState = params.get("liff.state") ?? "";
+  if (liffState) {
+    try {
+      const decoded = decodeURIComponent(liffState);
+      const stateUrl = decoded.startsWith("http")
+        ? new URL(decoded)
+        : new URL(decoded, window.location.origin);
+      const activityFromState = stateUrl.searchParams.get("activity") ?? "";
+      if (activityFromState) return activityFromState;
+    } catch {
+      // ignore parse error and use fallback below
+    }
+  }
+
+  const fromSession = sessionStorage.getItem("activity_key") ?? "";
+  if (fromSession) return fromSession;
+
+  return localStorage.getItem("activity_key") ?? "";
 }
 
 export default function OpenLiffPage() {
   const liffId = useMemo(() => normalizeLiffId(process.env.NEXT_PUBLIC_LIFF_ID), []);
   const lineOaUrl = process.env.NEXT_PUBLIC_LINE_OA_URL ?? "";
+  const [activity, setActivity] = useState("");
 
-  const activity = useMemo(() => getParam("activity"), []);
+  useEffect(() => {
+    const resolved = resolveActivity();
+    if (resolved) {
+      setActivity(resolved);
+      sessionStorage.setItem("activity_key", resolved);
+      localStorage.setItem("activity_key", resolved);
+    }
+  }, []);
 
   const deepLink = useMemo(() => {
     if (!liffId) return "";
@@ -83,6 +113,11 @@ export default function OpenLiffPage() {
           >
             Continue on Web
           </a>
+          {!activity ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Missing activity key. Please reopen from the original activity link.
+            </p>
+          ) : null}
           {lineOaUrl ? (
             <a
               href={lineOaUrl}
