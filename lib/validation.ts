@@ -15,6 +15,7 @@ export const verifySchema = z.object({
 export const activitySchema = z.object({
   line_user_id: z.string().min(1),
   activity_key: z.string().min(1),
+  friend_flag: z.boolean().optional(),
 });
 
 export const adminActivityUpsertSchema = z.object({

@@ -140,13 +140,17 @@ function LiffPageContent() {
     }
   };
 
-  const enterActivity = async (lineUserId: string): Promise<EnterActivityResponse> => {
+  const enterActivity = async (
+    lineUserId: string,
+    friendFlag?: boolean
+  ): Promise<EnterActivityResponse> => {
     const response = await fetch("/api/enter-activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         line_user_id: lineUserId,
         activity_key: activity,
+        friend_flag: friendFlag,
       }),
     });
 
@@ -184,7 +188,7 @@ function LiffPageContent() {
     const friendFlag = await getFriendFlag();
 
     try {
-      const enterResult = await enterActivity(lineUserId);
+      const enterResult = await enterActivity(lineUserId, friendFlag);
 
       if (enterResult.pending_friend) {
         setAwaitingFriend(true);
@@ -241,7 +245,7 @@ function LiffPageContent() {
         return;
       }
 
-      const enterResult = await enterActivity(userId);
+      const enterResult = await enterActivity(userId, true);
       if (enterResult.pending_friend) {
         setErrorMessage(
           "TH: ระบบกำลังซิงก์สถานะเพื่อน กรุณารอสักครู่แล้วกด Continue อีกครั้ง\nEN: Friendship status is syncing. Please wait a moment and tap Continue again."
@@ -287,7 +291,7 @@ function LiffPageContent() {
       setErrorMessage("");
 
       try {
-        const enterResult = await enterActivity(userId);
+        const enterResult = await enterActivity(userId, true);
         if (enterResult.pending_friend) {
           setStatusMessage("Friend detected. Syncing status...");
           return;
@@ -630,7 +634,18 @@ function LiffPageContent() {
 
 export default function LiffPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-slate-50 text-slate-900" />}>
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+          <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h1 className="text-xl font-semibold">Loading check-in page...</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              If this screen does not move, close this page and open the activity link again.
+            </p>
+          </div>
+        </main>
+      }
+    >
       <LiffPageContent />
     </Suspense>
   );

@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     return fail("Invalid input", 400);
   }
 
-  const { line_user_id, activity_key } = parsed.data;
+  const { line_user_id, activity_key, friend_flag } = parsed.data;
 
   const verificationResult = await query(
     `
@@ -75,11 +75,11 @@ export async function POST(req: Request) {
     activity.flex_payload
   );
 
-  if (!dispatchResult.sent && dispatchResult.reason === "line_error") {
-    return fail("LINE API error", 502);
-  }
+  const shouldQueuePending =
+    (!dispatchResult.sent && dispatchResult.reason === "not_friend") ||
+    (!dispatchResult.sent && dispatchResult.reason === "line_error" && friend_flag === false);
 
-  if (!dispatchResult.sent && dispatchResult.reason === "not_friend") {
+  if (shouldQueuePending) {
     await queuePendingDispatch({
       lineUserId: line_user_id,
       studentId: verification.student_id,
@@ -87,6 +87,10 @@ export async function POST(req: Request) {
       richMenuId: activity.richmenu_id,
       flexPayload: activity.flex_payload,
     });
+  }
+
+  if (!dispatchResult.sent && !shouldQueuePending) {
+    return fail("LINE API error", 502);
   }
 
   await query(
@@ -100,6 +104,6 @@ export async function POST(req: Request) {
 
   return ok({
     activity_name: activity.activity_name,
-    pending_friend: !dispatchResult.sent && dispatchResult.reason === "not_friend",
+    pending_friend: shouldQueuePending,
   });
 }
