@@ -130,13 +130,13 @@ function LiffPageContent() {
     window.open(lineOaUrl, "_blank");
   };
 
-  const getFriendFlag = async () => {
-    if (!window.liff?.getFriendship) return false;
+  const getFriendFlag = async (): Promise<boolean | null> => {
+    if (!window.liff?.getFriendship) return null;
     try {
       const result = await window.liff.getFriendship();
       return Boolean(result.friendFlag);
     } catch {
-      return false;
+      return null;
     }
   };
 
@@ -188,7 +188,10 @@ function LiffPageContent() {
     const friendFlag = await getFriendFlag();
 
     try {
-      const enterResult = await enterActivity(lineUserId, friendFlag);
+      const enterResult = await enterActivity(
+        lineUserId,
+        typeof friendFlag === "boolean" ? friendFlag : undefined
+      );
 
       if (enterResult.pending_friend) {
         setAwaitingFriend(true);
@@ -214,7 +217,7 @@ function LiffPageContent() {
 
       // If LINE API cannot send rich menu/flex and user is not a friend yet,
       // guide user to add OA first.
-      if (message === "LINE API error" && !friendFlag) {
+      if (message === "LINE API error" && friendFlag === false) {
         setAwaitingFriend(true);
         setStatusMessage(
           "Please add LINE OA friend. After adding friend, return to this page and the system will continue automatically."
@@ -283,7 +286,7 @@ function LiffPageContent() {
       }
 
       const friendFlag = await getFriendFlag();
-      if (!friendFlag || cancelled) {
+      if (friendFlag !== true || cancelled) {
         return;
       }
 

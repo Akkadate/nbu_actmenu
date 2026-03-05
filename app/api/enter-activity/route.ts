@@ -76,6 +76,7 @@ export async function POST(req: Request) {
   );
 
   const shouldQueuePending =
+    friend_flag === false ||
     (!dispatchResult.sent && dispatchResult.reason === "not_friend") ||
     (!dispatchResult.sent && dispatchResult.reason === "line_error" && friend_flag !== true);
 
