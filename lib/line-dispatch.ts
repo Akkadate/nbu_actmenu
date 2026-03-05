@@ -52,9 +52,14 @@ function isNotFriendError(error: unknown): boolean {
     "user doesn't exist",
     "this account is not your friend",
     "failed to send messages",
+    "cannot find specified user",
+    "the user is not a friend",
+    "friendship is required",
   ];
+  const messageMatched = keywords.some((keyword) => message.includes(keyword));
+  const statusMatched = status === 400 || status === 403 || status === 404;
 
-  return status === 400 && keywords.some((keyword) => message.includes(keyword));
+  return messageMatched || (statusMatched && message.includes("friend"));
 }
 
 export async function dispatchLineContent(
