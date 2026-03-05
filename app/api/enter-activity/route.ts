@@ -1,6 +1,6 @@
 import { ok, fail } from "@/lib/api";
 import { query } from "@/lib/db";
-import { dispatchLineContent, queuePendingDispatch } from "@/lib/line-dispatch";
+import { dispatchLineContent, markPendingDispatchAsSent, queuePendingDispatch } from "@/lib/line-dispatch";
 import { activitySchema } from "@/lib/validation";
 
 type ActivityRow = {
@@ -69,6 +69,25 @@ export async function POST(req: Request) {
     }
   }
 
+  const existedCheckin = await query(
+    `
+      SELECT 1
+      FROM activity_checkins
+      WHERE activity_key = $1
+        AND line_user_id = $2
+      LIMIT 1
+    `,
+    [activity_key, line_user_id]
+  );
+
+  if (existedCheckin.rowCount && existedCheckin.rowCount > 0) {
+    return ok({
+      activity_name: activity.activity_name,
+      already_checked_in: true,
+      pending_friend: false,
+    });
+  }
+
   const dispatchResult = await dispatchLineContent(
     line_user_id,
     activity.richmenu_id,
@@ -92,6 +111,10 @@ export async function POST(req: Request) {
 
   if (!dispatchResult.sent && !shouldQueuePending) {
     return fail("LINE API error", 502);
+  }
+
+  if (dispatchResult.sent) {
+    await markPendingDispatchAsSent(line_user_id, activity_key);
   }
 
   await query(

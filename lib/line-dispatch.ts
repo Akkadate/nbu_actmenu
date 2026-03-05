@@ -171,3 +171,19 @@ export async function processPendingDispatchesByLineUser(lineUserId: string) {
     );
   }
 }
+
+export async function markPendingDispatchAsSent(lineUserId: string, activityKey: string) {
+  await query(
+    `
+      UPDATE line_pending_dispatches
+      SET status = 'sent',
+          sent_at = COALESCE(sent_at, NOW()),
+          last_error = NULL,
+          updated_at = NOW()
+      WHERE line_user_id = $1
+        AND activity_key = $2
+        AND status = 'pending'
+    `,
+    [lineUserId, activityKey]
+  );
+}
