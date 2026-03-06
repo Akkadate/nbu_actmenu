@@ -88,28 +88,21 @@ export async function POST(req: Request) {
     });
   }
 
+  await queuePendingDispatch({
+    lineUserId: line_user_id,
+    studentId: verification.student_id,
+    activityKey: activity_key,
+    richMenuId: activity.richmenu_id,
+    flexPayload: activity.flex_payload,
+  });
+
   const dispatchResult = await dispatchLineContent(
     line_user_id,
     activity.richmenu_id,
     activity.flex_payload
   );
 
-  const shouldQueuePending =
-    friend_flag === false ||
-    (!dispatchResult.sent && dispatchResult.reason === "not_friend") ||
-    (!dispatchResult.sent && dispatchResult.reason === "line_error" && friend_flag !== true);
-
-  if (shouldQueuePending) {
-    await queuePendingDispatch({
-      lineUserId: line_user_id,
-      studentId: verification.student_id,
-      activityKey: activity_key,
-      richMenuId: activity.richmenu_id,
-      flexPayload: activity.flex_payload,
-    });
-  }
-
-  if (!dispatchResult.sent && !shouldQueuePending) {
+  if (!dispatchResult.sent && dispatchResult.reason === "line_error" && friend_flag === true) {
     return fail("LINE API error", 502);
   }
 
@@ -128,6 +121,6 @@ export async function POST(req: Request) {
 
   return ok({
     activity_name: activity.activity_name,
-    pending_friend: shouldQueuePending,
+    pending_friend: !dispatchResult.sent,
   });
 }
